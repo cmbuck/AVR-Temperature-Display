@@ -15,7 +15,6 @@
 *.exe
 *.out
 *.app
-<<<<<<< HEAD
 
 # AVR junk
 *.eep
@@ -31,5 +30,3 @@
 *.pnps
 
 .dep/
-=======
->>>>>>> 3f246385833a11723a21a6e0f6b017d8ac372ae6
