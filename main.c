@@ -1,7 +1,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define DELAY_AMOUNT	20
+#define DELAY_AMOUNT	5
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 
@@ -30,13 +30,14 @@ void displayMatrix(short bits)
 	int i = 0;
 	int j = 0;
 	
-	DDRB = 0x00;  //ensure everything is tristated
+	DDRB = 0x7F;  //ensure everything is un-tristated
+	PORTB = 0x7F; //and set high
 	DDRD &= ~0x03;
 	
 	for (i = 0; i < 2; i++)
 	{
 		//set digit high
-		blink(250);
+		//blink(250);
 		setBit(DDRD, 1 << i); 
 		setBit(PORTD, 1 << i);
 		/*
@@ -48,13 +49,16 @@ void displayMatrix(short bits)
 			_delay_ms(DELAY_AMOUNT);
 			clrBit(DDRB, 1 << j);
 		}*/
-		PORTB |= ((~bits >> (i*8)) & 0x7F);
-		_delay_ms(DELAY_AMOUNT);
-		PORTB &= ~0x7F;
+		PORTB &= ((~bits >> (i*8)) & 0x7F);
+		//_delay_ms(DELAY_AMOUNT);
+		blink(DELAY_AMOUNT);
+		PORTB |= 0x7F;
 		//set digit to tristate
 		clrBit(PORTD, 1 << i);
 		clrBit(DDRD, 1 << i);
 	}
+	
+	DDRB = 0x00;  //ensure everything is tristated
 }
 
 int main(void)
