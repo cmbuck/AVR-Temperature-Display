@@ -78,7 +78,7 @@ int main(void)
 	while (1)
 	{
 		for (i = 0; i < 64; i++)
-			for (j = 0; j < 100; j++)
+			for (j = 0; j < 30; j++)
 				displayMatrix(lookup_matrix[i]);
 	}
 }
