@@ -1,7 +1,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define DELAY_AMOUNT	5
+#define DELAY_AMOUNT	1
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 
@@ -47,28 +47,29 @@ void displayMatrix(short bits)
 	for (i = 0; i < 2; i++)
 	{
 		//set digit high
-		//blink(250);
 		setBit(DDRD, 1 << i); 
 		setBit(PORTD, 1 << i);
-		/*
-		for (j = 0; j < 7; j++)
-		{
-			//set column to respective passed bit
-			if (bits & (1 << (4*i + j)))
-			setBit(DDRB, 1 << j);
-			_delay_ms(DELAY_AMOUNT);
-			clrBit(DDRB, 1 << j);
-		}*/
-		PORTB &= ((~bits >> (i*8)) & 0x7F);
-		//_delay_ms(DELAY_AMOUNT);
-		blink(DELAY_AMOUNT);
-		PORTB |= 0x7F;
+
+		PORTB &= ((~bits >> (i*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
+		_delay_ms(DELAY_AMOUNT);
+
+		PORTB |= 0x7F;		//set the pins back high to turn off display
 		//set digit to tristate
 		clrBit(PORTD, 1 << i);
 		clrBit(DDRD, 1 << i);
 	}
 	
 	DDRB = 0x00;  //ensure everything is tristated
+	_delay_ms(DELAY_AMOUNT);	//dim the display
+}
+
+/*
+	Displays the number on the digit displays
+	PRECONDITION: Number must be between 44 and 107 inclusive
+*/
+void displayNumber(int number)
+{
+	displayMatrix(lookup_matrix[number - 44]);
 }
 
 int main(void)
