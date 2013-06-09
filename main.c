@@ -5,6 +5,8 @@
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 
+#define CALIBRATION	(-10)
+
 //static volatile short displayNumber;
 
 const short lookup_matrix[64] = 
@@ -116,7 +118,7 @@ uint16_t adc_read(uint8_t ch)
 
 int calcTemp(int adcValue)
 {
-	return ((adcValue * (5.0 / 1024) - 0.75) / 0.018) + 77;
+	return ((int) ((adcValue * (5.0 / 1024) - 0.75) / 0.018)) + 77;
 }
 
 int main(void)
@@ -142,7 +144,7 @@ int main(void)
 	while (1)
 	{
 		adcValue = adc_read(0);
-		temperatureValue = calcTemp(adcValue);
+		temperatureValue = calcTemp(adcValue + CALIBRATION);
 		
 		for (i = 0; i < 64; i++)
 			displayNumber(temperatureValue);
