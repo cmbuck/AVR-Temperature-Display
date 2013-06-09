@@ -5,6 +5,8 @@
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 
+//static volatile short displayNumber;
+
 const short lookup_matrix[64] = 
 {	
 	0x3333, 0x335B, 0x335F, 0x3370,
@@ -69,7 +71,52 @@ void displayMatrix(short bits)
 */
 void displayNumber(int number)
 {
-	displayMatrix(lookup_matrix[number - 44]);
+	int fixedNumber = number;
+	if (number > 107)	fixedNumber = 107;
+	if (number < 44 )	fixedNumber = 44;
+	displayMatrix(lookup_matrix[fixedNumber - 44]);
+}
+
+void initializeTimer()
+{
+	
+}
+
+// initialize adc
+void adc_init()
+{
+    // AREF = AVcc
+    ADMUX = (1<<REFS0);
+ 
+    // ADC Enable and prescaler of 128
+    // 1000000/128 = 7812
+    ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
+}
+ 
+// read adc value
+uint16_t adc_read(uint8_t ch)
+{
+    // select the corresponding channel 0~7
+    // ANDing with '7' will always keep the value
+    // of 'ch' between 0 and 7
+    ch &= 0b00000111;  // AND operation with 7
+    ADMUX = (ADMUX & 0xF8)|ch;     // clears the bottom 3 bits before ORing
+ 
+    // start single conversion
+    // write '1' to ADSC
+    ADCSRA |= (1<<ADSC);
+ 
+    // wait for conversion to complete
+    // ADSC becomes '0' again
+    // till then, run loop continuously
+    while(ADCSRA & (1<<ADSC));
+ 
+    return (ADC);
+}
+
+int calcTemp(int adcValue)
+{
+	return ((adcValue * (5.0 / 1024) - 0.75) / 0.018) + 77;
 }
 
 int main(void)
@@ -77,7 +124,10 @@ int main(void)
 	_delay_ms(3000);
 	
 	blink(500);
-
+	
+	initializeTimer();
+	adc_init();
+	
 	int i = 0;
 	int j = 0;
 
@@ -86,10 +136,21 @@ int main(void)
 	PORTB = 0x00;	//no pull-ups (tristate)
 	PORTD &= ~0x03;
 	
+	int adcValue = 0;
+	int temperatureValue = 0;
+	
 	while (1)
 	{
+		adcValue = adc_read(0);
+		temperatureValue = calcTemp(adcValue);
+		
+		for (i = 0; i < 64; i++)
+			displayNumber(temperatureValue);
+		
+		/**
 		for (i = 0; i < 64; i++)
 			for (j = 0; j < 30; j++)
 				displayMatrix(lookup_matrix[i]);
+		*/
 	}
 }
