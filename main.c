@@ -5,10 +5,14 @@
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 
+//This specifies the number of "resolution points" to adjust the
+//temperature sensor readings by
 #define CALIBRATION	(-10)
 
-//static volatile short displayNumber;
-
+/*
+ * This lookup matrix is the pattern of bits to illuminate
+ * The higher byte is the left digit, lower byte is the right digit
+ */
 const short lookup_matrix[64] = 
 {	
 	0x3333, 0x335B, 0x335F, 0x3370,
@@ -27,7 +31,8 @@ const short lookup_matrix[64] =
 	0x735F, 0x7370, 0x737F, 0x7373,
 	0x7E7E, 0x7E30, 0x7E6D, 0x7E79,
 	0x7E33, 0x7E5B, 0x7E5F, 0x7E70 
-	};
+};
+
 
 void blink(int duration)
 {
