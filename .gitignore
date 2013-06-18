@@ -28,5 +28,10 @@
 # Programmer's notepad stuff
 *.pnproj
 *.pnps
-
 .dep/
+
+# Eclipse project files
+.cproject
+.project
+.settings/
+Debug/
