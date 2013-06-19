@@ -4,6 +4,7 @@
 #define DELAY_AMOUNT	1
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
+#define BIT(a)			(1 << a)
 
 //This specifies the number of "resolution points" to adjust the
 //temperature sensor readings by
@@ -54,15 +55,16 @@ void displayMatrix(short bits)
 	
 	DDRB = 0x7F;  //ensure everything is un-tristated
 	PORTB = 0x7F; //and set high
-	DDRD &= ~0x03;
+	DDRD &= ~0x0C;
+	setBit(DDRD, BIT(3) | BIT(4));
 	
-	for (i = 0; i < 2; i++)
+	for (i = 3; i < 5; i++)
 	{
 		//set digit high
-		setBit(DDRD, 1 << i); 
+		setBit(DDRD, 1 << i);
 		setBit(PORTD, 1 << i);
 
-		PORTB &= ((~bits >> (i*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
+		PORTB &= ((~bits >> ((i-3)*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
 		_delay_ms(DELAY_AMOUNT);
 
 		PORTB |= 0x7F;		//set the pins back high to turn off display
@@ -160,14 +162,15 @@ int main(void)
 	
 	initializeTimer();
 	adc_init();
+	initializeSerial();
 	
 	int i = 0;
 	int j = 0;
 
 	DDRB = 0x00;	//set to inputs (tristate)
-	DDRD &= ~0x03;	//tristate the two pins we use
+	DDRD &= ~0x0C;	//tristate the two pins we use
 	PORTB = 0x00;	//no pull-ups (tristate)
-	PORTD &= ~0x03;
+	PORTD &= ~0x0C;
 	
 	int adcValue = 0;
 	int temperatureValue = 0;
@@ -177,6 +180,8 @@ int main(void)
 		adcValue = adc_read(0);
 		temperatureValue = calcTemp(adcValue + CALIBRATION);
 		
+		serialWriteByte(adcValue & 0xFF);
+
 		for (i = 0; i < 64; i++)
 			displayNumber(temperatureValue);
 		
