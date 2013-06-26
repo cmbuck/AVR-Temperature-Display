@@ -1,7 +1,8 @@
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
 
-#define DELAY_AMOUNT	1
+#define DELAY_AMOUNT	4
 #define setBit(a, b)	(a) |= (b)
 #define clrBit(a, b)	(a) &= ~(b)
 #define BIT(a)			(1 << a)
@@ -12,6 +13,48 @@
 
 #define USART_BAUDRATE 2400
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
+#define DIGIT1_PIN		3
+#define DIGIT2_PIN		4
+
+static volatile short displayBits;
+enum {DIGIT1, DIGIT2, OFF} ISR_State;
+static volatile int isrStateCount = 0;
+static volatile int isrStateCountSetPoint = 0;
+
+ISR(TIMER1_COMPA_vect)
+{
+	switch (ISR_State)
+	{
+	case DIGIT1 :
+		PORTB &= ((~displayBits >> ((0)*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
+		setBit(DDRD, 1 << DIGIT1_PIN);
+		setBit(PORTD, 1 << DIGIT1_PIN);
+		ISR_State = DIGIT2;
+		break;
+
+	case DIGIT2 :
+		clrBit(PORTD, 1 << DIGIT1_PIN);
+		clrBit(DDRD, 1 << DIGIT1_PIN);
+		PORTB |= 0x7F;
+		PORTB &= ((~displayBits >> ((1)*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
+		setBit(DDRD, 1 << DIGIT2_PIN);
+		setBit(PORTD, 1 << DIGIT2_PIN);
+		ISR_State = OFF;
+		break;
+
+	case OFF :
+		clrBit(PORTD, 1 << DIGIT2_PIN);
+		clrBit(DDRD, 1 << DIGIT2_PIN);
+		PORTB |= 0x7F;
+		isrStateCount++;
+		if (isrStateCount >= isrStateCountSetPoint)
+		{
+			ISR_State = DIGIT1;
+			isrStateCount = 0;
+		}
+		break;
+	}
+}
 
 /*
  * This lookup matrix is the pattern of bits to illuminate
@@ -48,7 +91,7 @@ void blink(int duration)
 	_delay_ms(duration);
 }
 
-void displayMatrix(short bits)
+void displayMatrix(short bits, float brightness)
 {
 	int i = 0;
 	int j = 0;
@@ -65,7 +108,7 @@ void displayMatrix(short bits)
 		setBit(PORTD, 1 << i);
 
 		PORTB &= ((~bits >> ((i-3)*8)) & 0x7F);	//clear PORTB bit if corresponding bits bit is 1
-		_delay_ms(DELAY_AMOUNT);
+		_delay_ms(DELAY_AMOUNT * brightness);
 
 		PORTB |= 0x7F;		//set the pins back high to turn off display
 		//set digit to tristate
@@ -74,24 +117,32 @@ void displayMatrix(short bits)
 	}
 	
 	DDRB = 0x00;  //ensure everything is tristated
-	_delay_ms(DELAY_AMOUNT);	//dim the display
+	_delay_ms(DELAY_AMOUNT * (1 - brightness));	//dim the display
 }
 
 /*
 	Displays the number on the digit displays
 	PRECONDITION: Number must be between 44 and 107 inclusive
 */
-void displayNumber(int number)
+void displayNumber(int number, float brightness)
 {
 	int fixedNumber = number;
 	if (number > 107)	fixedNumber = 107;
 	if (number < 44 )	fixedNumber = 44;
-	displayMatrix(lookup_matrix[fixedNumber - 44]);
+	//displayMatrix(lookup_matrix[fixedNumber - 44], brightness);
+	displayBits = lookup_matrix[fixedNumber - 44];
 }
 
 void initializeTimer()
 {
-	
+	TCCR1B |= (1 << WGM12); //enable CTC mode
+
+	OCR1A = 16; //about 50 Hz with 1024 prescale
+
+	TCCR1B |= (1 << CS10) | (1 << CS12); // Set up timer with 1024 prescale
+
+	TIMSK1 |= (1 << OCIE1A); //enable timer1 CTC interrupt
+	sei();			//enable global interrupts
 }
 
 void initializeSerial()
@@ -125,6 +176,7 @@ void adc_init()
  
     // ADC Enable and prescaler of 128
     // 1000000/128 = 7812
+    // 8000000/128 = 62500
     ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 }
  
@@ -167,23 +219,29 @@ int main(void)
 	int i = 0;
 	int j = 0;
 
-	DDRB = 0x00;	//set to inputs (tristate)
+	ISR_State = OFF;
+
+	DDRB = 0x7F;	//set to outputs
 	DDRD &= ~0x0C;	//tristate the two pins we use
-	PORTB = 0x00;	//no pull-ups (tristate)
+	PORTB = 0x7F;	//put high
 	PORTD &= ~0x0C;
 	
 	int adcValue = 0;
+	int potValue = 0;
+	float brightness;
 	int temperatureValue = 0;
 	
 	while (1)
 	{
 		adcValue = adc_read(0);
+		potValue = adc_read(1);
+		isrStateCountSetPoint = potValue / 128;
 		temperatureValue = calcTemp(adcValue + CALIBRATION);
 		
 		serialWriteByte(adcValue & 0xFF);
 
-		for (i = 0; i < 64; i++)
-			displayNumber(temperatureValue);
+		//for (i = 0; i < 64; i++)
+			displayNumber(temperatureValue, brightness);
 		
 		/**
 		for (i = 0; i < 64; i++)
